@@ -16,6 +16,6 @@ export const config = Object.freeze({
   maxFileSizeBytes: integer(process.env.MAX_FILE_SIZE_MB, 250, 1, 10_240) * 1024 * 1024,
   rateLimitWindowMs: integer(process.env.RATE_LIMIT_WINDOW_MS, 60_000, 1_000, 3_600_000),
   rateLimitMax: integer(process.env.RATE_LIMIT_MAX, 60, 1, 100_000),
-  uploadDir: path.join(root, 'public', 'uploads'),
-  metadataDir: path.join(root, 'data'),
+  uploadDir: path.resolve(process.env.UPLOAD_DIR || path.join(root, 'public', 'uploads')),
+  metadataDir: path.resolve(process.env.METADATA_DIR || path.join(root, 'data')),
 });

@@ -6,12 +6,15 @@ import { HttpError } from './errors.js';
 
 const metadataPath = (id) => path.join(config.metadataDir, `${id}.json`);
 const filePath = (id) => path.join(config.uploadDir, id);
+let initialization;
 
 export async function initializeStorage() {
-  await Promise.all([mkdir(config.uploadDir, { recursive: true }), mkdir(config.metadataDir, { recursive: true })]);
+  initialization ??= Promise.all([mkdir(config.uploadDir, { recursive: true }), mkdir(config.metadataDir, { recursive: true })]);
+  return initialization;
 }
 
 export async function saveFile({ id, tempPath, originalName, mimeType, size }) {
+  await initializeStorage();
   const metadata = {
     id,
     filename: originalName,

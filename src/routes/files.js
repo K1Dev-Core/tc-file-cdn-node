@@ -9,7 +9,7 @@ import multer from 'multer';
 import { config } from '../config.js';
 import { HttpError } from '../errors.js';
 import { requireApiKey } from '../middleware/auth.js';
-import { deleteFile, getFileInfo, openFile, saveFile } from '../storage.js';
+import { deleteFile, getFileInfo, initializeStorage, openFile, saveFile } from '../storage.js';
 
 const router = express.Router();
 const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -33,6 +33,7 @@ const downloadUrl = (id) => `${config.baseUrl}/v1/files/${id}/download`;
 
 router.post('/', requireApiKey, upload.single('file'), asyncRoute(async (req, res) => {
   if (!req.file) throw new HttpError(400, 'FILE_REQUIRED', 'Select one file using the "file" field');
+  await initializeStorage();
   const id = randomUUID();
   let metadata;
   try {

@@ -1,8 +1,7 @@
 import 'dotenv/config';
-import { createApp, storageReady } from './src/app.js';
+import { createApp } from './src/app.js';
 import { config } from './src/config.js';
 
-await storageReady;
 const app = createApp();
 const server = app.listen(config.port, () => {
   console.log(`TC File CDN listening on port ${config.port}`);

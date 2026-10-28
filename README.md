@@ -48,6 +48,7 @@ Response:
 
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
+| `GET` | `/` | No | API status page and route summary |
 | `GET` | `/healthz` | No | Health check |
 | `POST` | `/v1/files` | API key | Upload one file |
 | `GET` | `/v1/files/:id` | No | Get filename, type, size, and URLs |
@@ -92,7 +93,7 @@ Serverless platforms may cap request body sizes, even when this file service all
 
 ## Deploy
 
-This is a regular long-running Node.js server, not a Vercel serverless function. Deploy it to a Node host with a **persistent writable disk/volume** mounted for this project. The uploaded bytes live in `public/uploads/`; the JSON sidecars in `data/` are needed to resolve IDs and names. If the host replaces its container without a persistent volume, files will be lost.
+Deploy it to a Node host with a **persistent writable disk/volume** mounted for this project. The uploaded bytes live in `public/uploads/`; the JSON sidecars in `data/` are needed to resolve IDs and names. If the host replaces its container without a persistent volume, files will be lost. Vercel can run Express, but its function filesystem is temporary; local storage there is not suitable for files that must persist. Use a persistent Node host or replace the local storage adapter with object storage before using it on Vercel.
 
 Set these production environment values:
 
@@ -121,6 +122,8 @@ Put a domain or CDN proxy in front of the Node server and set `BASE_URL` to that
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window |
 | `RATE_LIMIT_MAX` | `60` | Requests allowed per IP in the window |
 | `TRUST_PROXY` | `0` | Set to `1` only when deployed behind one trusted reverse proxy, so rate limits can use the client IP |
+| `UPLOAD_DIR` | `public/uploads` | Optional absolute path for uploaded file bytes |
+| `METADATA_DIR` | `data` | Optional absolute path for metadata sidecars |
 
 ## Errors
 
