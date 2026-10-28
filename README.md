@@ -103,7 +103,7 @@ NODE_ENV=production
 PORT=3002
 BASE_URL=https://files.example.com
 API_KEY=<long-random-secret>
-CORS_ORIGINS=https://tc-newgen-chat.vercel.app
+CORS_ORIGINS=https://tc-newgen-chat.vercel.app,https://tc-n.k1god.com
 MAX_FILE_SIZE_MB=250
 ```
 
@@ -118,7 +118,7 @@ Put a domain or CDN proxy in front of the Node server and set `BASE_URL` to that
 | `PORT` | `3002` | HTTP port |
 | `BASE_URL` | `http://localhost:<PORT>` | Public service origin used in returned URLs |
 | `API_KEY` | Empty | Required for upload/delete; routes return `503` until configured |
-| `CORS_ORIGINS` | Empty | Comma-separated browser origins; TC Newgen's production origin is always allowed; `*` permits any origin |
+| `CORS_ORIGINS` | Empty | Comma-separated browser origins; the TC Newgen production domains are always allowed; `*` permits any origin |
 | `MAX_FILE_SIZE_MB` | `250` | Maximum size per file, from 1 MB to 10 GB |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window |
 | `RATE_LIMIT_MAX` | `60` | Requests allowed per IP in the window |

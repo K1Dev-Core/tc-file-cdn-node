@@ -10,7 +10,7 @@ import { initializeStorage } from './storage.js';
 
 export function createApp() {
   const app = express();
-  const allowedOrigins = new Set([...config.corsOrigins, 'https://tc-newgen-chat.vercel.app']);
+  const allowedOrigins = new Set([...config.corsOrigins, 'https://tc-newgen-chat.vercel.app', 'https://tc-n.k1god.com']);
   app.disable('x-powered-by');
   app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
