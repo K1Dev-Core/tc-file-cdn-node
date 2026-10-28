@@ -8,7 +8,7 @@ import express from 'express';
 import multer from 'multer';
 import { config } from '../config.js';
 import { HttpError } from '../errors.js';
-import { requireApiKey } from '../middleware/auth.js';
+import { authorizeUpload, requireApiKey } from '../middleware/auth.js';
 import { deleteFile, getFileInfo, initializeStorage, openFile, saveFile } from '../storage.js';
 
 const router = express.Router();
@@ -30,11 +30,16 @@ const upload = multer({
 const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const validId = (id) => { if (!idPattern.test(id)) throw new HttpError(400, 'INVALID_FILE_ID', 'File id must be a UUID'); };
 const downloadUrl = (id) => `${config.baseUrl}/v1/files/${id}/download`;
+const previewUrl = (id) => `${config.baseUrl}/v1/files/${id}/preview`;
 
-router.post('/', requireApiKey, upload.single('file'), asyncRoute(async (req, res) => {
+router.post('/', authorizeUpload, upload.single('file'), asyncRoute(async (req, res) => {
   if (!req.file) throw new HttpError(400, 'FILE_REQUIRED', 'Select one file using the "file" field');
   await initializeStorage();
-  const id = randomUUID();
+  if (req.uploadTicket && req.file.size > req.uploadTicket.maxBytes) {
+    await rm(req.file.path, { force: true });
+    throw new HttpError(413, 'FILE_TOO_LARGE', 'File exceeds the upload ticket size limit');
+  }
+  const id = req.uploadTicket?.id ?? randomUUID();
   let metadata;
   try {
     metadata = await saveFile({
@@ -47,13 +52,31 @@ router.post('/', requireApiKey, upload.single('file'), asyncRoute(async (req, re
   } finally {
     await rm(req.file.path, { force: true });
   }
-  res.status(201).json({ data: { ...metadata, url: downloadUrl(id), downloadUrl: downloadUrl(id), infoUrl: `${config.baseUrl}/v1/files/${id}` } });
+  res.status(201).json({ data: { ...metadata, url: downloadUrl(id), downloadUrl: downloadUrl(id), previewUrl: previewMimeTypes.has(metadata.mimeType) ? previewUrl(id) : null, infoUrl: `${config.baseUrl}/v1/files/${id}` } });
 }));
 
 router.get('/:id', asyncRoute(async (req, res) => {
   validId(req.params.id);
   const info = await getFileInfo(req.params.id);
-  res.json({ data: { ...info, url: downloadUrl(info.id), downloadUrl: downloadUrl(info.id) } });
+  res.json({ data: { ...info, url: downloadUrl(info.id), downloadUrl: downloadUrl(info.id), previewUrl: previewMimeTypes.has(info.mimeType) ? previewUrl(info.id) : null } });
+}));
+
+const previewMimeTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/bmp']);
+router.get('/:id/preview', asyncRoute(async (req, res, next) => {
+  validId(req.params.id);
+  const info = await getFileInfo(req.params.id);
+  if (!previewMimeTypes.has(info.mimeType)) throw new HttpError(415, 'PREVIEW_NOT_SUPPORTED', 'Preview is available for raster image files only');
+  const safeFallback = info.filename.replace(/[\r\n"\\]/g, '_').replace(/[^\x20-\x7E]/g, '_').slice(0, 120) || 'image';
+  res.set({
+    'Content-Type': info.mimeType,
+    'Content-Length': String(info.size),
+    'Content-Disposition': `inline; filename="${safeFallback}"; filename*=UTF-8''${encodeURIComponent(info.filename)}`,
+    'X-Content-Type-Options': 'nosniff',
+    'Cache-Control': 'public, max-age=3600',
+    ETag: `"${info.id}-${info.size}"`,
+  });
+  try { await pipeline(openFile(info.id), res); }
+  catch (error) { if (!res.headersSent) next(error); else res.destroy(error); }
 }));
 
 router.get('/:id/download', asyncRoute(async (req, res, next) => {

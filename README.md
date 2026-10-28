@@ -15,7 +15,7 @@ The API starts at `http://localhost:3002`. Uploads are written into this project
 
 ## API
 
-All API responses use JSON except the file download response. Upload and delete require `Authorization: Bearer <API_KEY>`. Downloads and file metadata are public to anyone with the file ID, so treat returned URLs as shareable links.
+All API responses use JSON except file preview/download responses. Upload accepts either `Authorization: Bearer <API_KEY>` or a short-lived HMAC upload ticket signed by the trusted chat server. Delete requires the API key. Downloads, previews, and metadata are public to anyone with the file ID, so treat returned URLs as shareable links.
 
 ### Upload any file
 
@@ -52,14 +52,15 @@ Response:
 | `GET` | `/healthz` | No | Health check |
 | `POST` | `/v1/files` | API key | Upload one file |
 | `GET` | `/v1/files/:id` | No | Get filename, type, size, and URLs |
+| `GET` | `/v1/files/:id/preview` | No | Inline preview for safe raster images |
 | `GET` | `/v1/files/:id/download` | No | Download; supports byte ranges for media/resume |
 | `DELETE` | `/v1/files/:id` | API key | Permanently delete the file and metadata |
 
-Downloads always use `application/octet-stream`, `Content-Disposition: attachment`, and `X-Content-Type-Options: nosniff`. That allows arbitrary extensions without letting an uploaded HTML or script execute on the CDN origin. Downloads support `Range: bytes=...` for resumable and media-style clients.
+Downloads always use `application/octet-stream`, `Content-Disposition: attachment`, and `X-Content-Type-Options: nosniff`. That allows arbitrary extensions without letting an uploaded HTML or script execute on the CDN origin. Downloads support `Range: bytes=...` for resumable and media-style clients. The preview route only serves common raster image MIME types inline; SVG and HTML are download-only.
 
 ### Connect from the chat app
 
-Keep `API_KEY` on the server. Do not put it in browser JavaScript or a `NEXT_PUBLIC_` variable. In Next.js, add a server route that receives the browser's multipart upload and forwards it to this API with the bearer key. Store the returned `id`, `filename`, `mimeType`, `size`, and `downloadUrl` in the chat message record. Anyone who can read the chat can open the public download URL.
+Keep `API_KEY` on the server. Do not put it in browser JavaScript or a `NEXT_PUBLIC_` variable. The TC Newgen app signs a short-lived ticket on the server using `API_KEY`; the browser sends that ticket directly to the CDN so large files do not pass through the Vercel function body limit. Tickets are scoped to one random file ID, an upload-only permission, a maximum size, and a 15-minute expiry. Store the returned `id`, `filename`, `mimeType`, and `size` in the chat message record. Anyone who can read the chat can open the public download URL.
 
 Set the chat app's server environment values:
 
@@ -117,7 +118,7 @@ Put a domain or CDN proxy in front of the Node server and set `BASE_URL` to that
 | `PORT` | `3002` | HTTP port |
 | `BASE_URL` | `http://localhost:<PORT>` | Public service origin used in returned URLs |
 | `API_KEY` | Empty | Required for upload/delete; routes return `503` until configured |
-| `CORS_ORIGINS` | Empty | Comma-separated browser origins; `*` permits any origin (API key is still required) |
+| `CORS_ORIGINS` | Empty | Comma-separated browser origins; TC Newgen's production origin is always allowed; `*` permits any origin |
 | `MAX_FILE_SIZE_MB` | `250` | Maximum size per file, from 1 MB to 10 GB |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window |
 | `RATE_LIMIT_MAX` | `60` | Requests allowed per IP in the window |

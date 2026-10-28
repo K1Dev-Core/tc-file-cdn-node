@@ -24,6 +24,10 @@ export function errorHandler(error, req, res, _next) {
     status = 503;
     code = 'STORAGE_UNAVAILABLE';
     message = 'File storage is not writable';
+  } else if (error.code === 'EEXIST') {
+    status = 409;
+    code = 'UPLOAD_TICKET_USED';
+    message = 'This upload ticket has already been used';
   }
 
   if (status >= 500) console.error({ requestId: req.id, error });

@@ -10,6 +10,7 @@ import { initializeStorage } from './storage.js';
 
 export function createApp() {
   const app = express();
+  const allowedOrigins = new Set([...config.corsOrigins, 'https://tc-newgen-chat.vercel.app']);
   app.disable('x-powered-by');
   app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
@@ -21,7 +22,7 @@ export function createApp() {
   });
   app.use(cors({
     origin(origin, callback) {
-      if (!origin || config.corsOrigins.includes('*') || config.corsOrigins.includes(origin)) return callback(null, true);
+      if (!origin || config.corsOrigins.length === 0 || config.corsOrigins.includes('*') || allowedOrigins.has(origin)) return callback(null, true);
       return callback(null, false);
     },
     methods: ['GET', 'HEAD', 'POST', 'DELETE', 'OPTIONS'],

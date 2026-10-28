@@ -1,5 +1,6 @@
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { config } from './config.js';
 import { HttpError } from './errors.js';
@@ -22,7 +23,11 @@ export async function saveFile({ id, tempPath, originalName, mimeType, size }) {
     size,
     uploadedAt: new Date().toISOString(),
   };
-  await rename(tempPath, filePath(id));
+  try { await copyFile(tempPath, filePath(id), constants.COPYFILE_EXCL); }
+  catch (error) {
+    if (error.code !== 'EEXIST') await rm(filePath(id), { force: true });
+    throw error;
+  }
   try {
     await writeFile(metadataPath(id), JSON.stringify(metadata), { flag: 'wx' });
   } catch (error) {
