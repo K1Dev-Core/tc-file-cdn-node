@@ -1,0 +1,14 @@
+services:
+  file-cdn:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${PORT:-3002}:3002"
+    volumes:
+      - file_uploads:/app/public/uploads
+      - file_metadata:/app/data
+
+volumes:
+  file_uploads:
+  file_metadata:

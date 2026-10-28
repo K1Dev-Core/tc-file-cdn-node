@@ -105,6 +105,8 @@ CORS_ORIGINS=https://tc-newgen-chat.vercel.app
 MAX_FILE_SIZE_MB=250
 ```
 
+For Docker Compose, create `.env` from `.env.example`, set the values above, then run `docker compose up -d --build`. Compose keeps uploaded files and metadata in named persistent volumes.
+
 Put a domain or CDN proxy in front of the Node server and set `BASE_URL` to that public origin. The API's upload key must stay server-side. CORS only controls browser access; it does not replace the API key. Files are public by ID, and deletion can take up to one hour to clear from a caching proxy.
 
 ## Configuration
