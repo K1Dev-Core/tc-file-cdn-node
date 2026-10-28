@@ -52,11 +52,11 @@ Response:
 | `GET` | `/healthz` | No | Health check |
 | `POST` | `/v1/files` | API key | Upload one file |
 | `GET` | `/v1/files/:id` | No | Get filename, type, size, and URLs |
-| `GET` | `/v1/files/:id/preview` | No | Inline preview for safe raster images |
+| `GET` | `/v1/files/:id/preview` | No | Inline preview for supported raster images and video media (supports byte ranges) |
 | `GET` | `/v1/files/:id/download` | No | Download; supports byte ranges for media/resume |
 | `DELETE` | `/v1/files/:id` | API key | Permanently delete the file and metadata |
 
-Downloads always use `application/octet-stream`, `Content-Disposition: attachment`, and `X-Content-Type-Options: nosniff`. That allows arbitrary extensions without letting an uploaded HTML or script execute on the CDN origin. Downloads support `Range: bytes=...` for resumable and media-style clients. The preview route only serves common raster image MIME types inline; SVG and HTML are download-only.
+Downloads always use `application/octet-stream`, `Content-Disposition: attachment`, and `X-Content-Type-Options: nosniff`. That allows arbitrary extensions without letting an uploaded HTML or script execute on the CDN origin. Downloads support `Range: bytes=...` for resumable and media-style clients. The preview route serves only allowlisted raster image and video MIME types inline, supports `Range` for video playback, and keeps SVG and HTML download-only.
 
 ### Connect from the chat app
 

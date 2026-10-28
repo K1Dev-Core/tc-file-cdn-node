@@ -31,6 +31,10 @@ const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 const validId = (id) => { if (!idPattern.test(id)) throw new HttpError(400, 'INVALID_FILE_ID', 'File id must be a UUID'); };
 const downloadUrl = (id) => `${config.baseUrl}/v1/files/${id}/download`;
 const previewUrl = (id) => `${config.baseUrl}/v1/files/${id}/preview`;
+const previewMimeTypes = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/bmp',
+  'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-m4v', 'video/3gpp', 'video/mpeg', 'video/x-msvideo',
+]);
 
 router.post('/', authorizeUpload, upload.single('file'), asyncRoute(async (req, res) => {
   if (!req.file) throw new HttpError(400, 'FILE_REQUIRED', 'Select one file using the "file" field');
@@ -61,21 +65,44 @@ router.get('/:id', asyncRoute(async (req, res) => {
   res.json({ data: { ...info, url: downloadUrl(info.id), downloadUrl: downloadUrl(info.id), previewUrl: previewMimeTypes.has(info.mimeType) ? previewUrl(info.id) : null } });
 }));
 
-const previewMimeTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/bmp']);
 router.get('/:id/preview', asyncRoute(async (req, res, next) => {
   validId(req.params.id);
   const info = await getFileInfo(req.params.id);
-  if (!previewMimeTypes.has(info.mimeType)) throw new HttpError(415, 'PREVIEW_NOT_SUPPORTED', 'Preview is available for raster image files only');
-  const safeFallback = info.filename.replace(/[\r\n"\\]/g, '_').replace(/[^\x20-\x7E]/g, '_').slice(0, 120) || 'image';
-  res.set({
+  if (!previewMimeTypes.has(info.mimeType)) throw new HttpError(415, 'PREVIEW_NOT_SUPPORTED', 'Preview is available for supported image and video files only');
+
+  let start = 0;
+  let end = info.size - 1;
+  let status = 200;
+  const range = req.get('range');
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (!match || info.size === 0) return res.status(416).set('Content-Range', `bytes */${info.size}`).json({ error: { code: 'INVALID_RANGE', message: 'Requested byte range is not satisfiable', requestId: req.id } });
+    if (!match[1]) {
+      const suffix = Number(match[2]);
+      if (!suffix) return res.status(416).set('Content-Range', `bytes */${info.size}`).json({ error: { code: 'INVALID_RANGE', message: 'Requested byte range is not satisfiable', requestId: req.id } });
+      start = Math.max(0, info.size - suffix);
+    } else {
+      start = Number(match[1]);
+      if (match[2]) end = Number(match[2]);
+    }
+    if (start >= info.size || end < start) return res.status(416).set('Content-Range', `bytes */${info.size}`).json({ error: { code: 'INVALID_RANGE', message: 'Requested byte range is not satisfiable', requestId: req.id } });
+    end = Math.min(end, info.size - 1);
+    status = 206;
+  }
+
+  const safeFallback = info.filename.replace(/[\r\n"\\]/g, '_').replace(/[^\x20-\x7E]/g, '_').slice(0, 120) || 'preview';
+  res.status(status).set({
     'Content-Type': info.mimeType,
-    'Content-Length': String(info.size),
+    'Content-Length': String(Math.max(0, end - start + 1)),
     'Content-Disposition': `inline; filename="${safeFallback}"; filename*=UTF-8''${encodeURIComponent(info.filename)}`,
     'X-Content-Type-Options': 'nosniff',
+    'Accept-Ranges': 'bytes',
     'Cache-Control': 'public, max-age=3600',
     ETag: `"${info.id}-${info.size}"`,
   });
-  try { await pipeline(openFile(info.id), res); }
+  if (status === 206) res.set('Content-Range', `bytes ${start}-${end}/${info.size}`);
+  if (info.size === 0) return res.end();
+  try { await pipeline(openFile(info.id, start, end), res); }
   catch (error) { if (!res.headersSent) next(error); else res.destroy(error); }
 }));
 
